@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>d3.basketball-shot-chart</title>
+    <link rel="stylesheet" type="text/css" href="./d3.basketball-shot-chart.css">
+    <script src="./d3.js"></script>
+    <script src="./hexbin.js"></script>
+    <script src="./d3.chart.js"></script>
+    <script src="./d3.chart.defaults.js"></script>
+    <script src="./d3.basketball-shot-chart.js"></script>
+    <script scr="./dataGrab.js"></script>
+
+    <style>
+        svg { font-family: Arial, sans-serif; }
+    </style>
+</head>
+<body>
+  <h3>Select a value:</h3>
+  <select id="dropdown">
+    <!-- Generate options from 1 to 300 using a loop -->
+    <!-- You can modify the loop range or step as needed -->
+    <!-- For example, if you want values from 1 to 100 with step 5, you can use "for (var i = 1; i <= 100; i+=5)" -->
+    <!-- You can also use JavaScript to dynamically generate options if the range is very large -->
+    <!-- For simplicity, we'll use a static range of 1 to 300 in this example -->
+    <option value="">Select</option>
+    <!-- Loop to generate options -->
+    <script>
+      for (var i = 1; i <= 570; i++) {
+        var option = document.createElement("option");
+        option.value = i;
+        option.text = i;
+        document.getElementById("dropdown").appendChild(option);
+      }
+    </script>
+  </select>
+<h2>Shot Chart</h2>
+<div id="chart">
+</div>
+
+<script>
+
+var data;
+var name;
+var leaders_by_zones;
+var image_api_path = "/players/31/image"
+var selectedValue = 1;
+
+var heatRange = ['#2bade9', '#a2cee9', '#e1e1e1', '#ea8677', '#d5372b'];
+
+function drawChart() {
+  svg = d3.select('#chart')
+    .append("svg")
+      .chart("BasketballShotChart", {
+        width: 1000,
+        height: 2000,
+        title: name,
+        hexagonFillValue: function(d) {  return d.z; },
+
+        <!-- hexagonRadiusValue: function(d) {return d.attempts*2;}, -->
+
+        heatScale: d3.scale.quantile()
+          .domain([-15, 15])
+          .range(heatRange),
+        hexagonRadiusSizes:  [0, .5, .8, 1.1],
+        player: selectedValue,
+        image_api_path: image_api_path,
+        leaders_by_zones: leaders_by_zones,
+        threePointCutoffLength: 9.8,
+        threePointRadius: 22.6,
+        threePointSideRadius: 22,
+        hexagonBinVisibleThreshold:1,
+        hexagonRadiusThreshold:1,
+        courtLength:92,
+        hexagonRadius: 1.3,
+        hexagonBin: function (point, bin) {
+          var currentZ = bin.z || 0;
+          var totalAttempts = bin.attempts || 0;
+          var totalZ = currentZ * totalAttempts;
+            
+          var attempts = point.attempts || 1;
+          bin.attempts = totalAttempts + attempts;
+          bin.z = point.z;
+        },
+      });
+    svg.draw(data);
+  }
+
+async function makeRequest(url) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          const responseData = await response.json();
+          return responseData; // Return the response JSON
+        } else {
+          console.log('Request failed with status ' + response.status);
+        }
+      } catch (error) {
+        console.log('An error occurred:', error);
+      } 
+    }
+
+
+async function fetchData() {
+  // var url = 'http://127.0.0.1:8000/api/v1/players/' + selectedValue + '/shotchart/hexbin?phase=all';
+  // var url = 'http://127.0.0.1:8000/api/v1/season-players/' + selectedValue + '/shotchart/hexbin?phase=all';
+  var url = 'https://api.pulsbasketu.com/api/v1/season-players/' + selectedValue + '/shotchart/hexbin?phase=all';
+  // var url = 'http://127.0.0.1:8000/api/v1/teams/' + selectedValue + '/shotchart/hexbin';
+  responseData = await makeRequest(url);
+  data = responseData['data']
+  name = responseData['name']
+  image_api_path = responseData['image_api_path']
+  drawChart();
+}
+
+
+dropdown.addEventListener("change", function() {
+      selectedValue = dropdown.value;
+      console.log("Selected value:", selectedValue);
+      fetchData();
+    });
+
+  fetchData();
+</script>
+
+</body>
+</html>
